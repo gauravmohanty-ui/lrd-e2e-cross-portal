@@ -1,25 +1,38 @@
 # lrd-e2e-cross-portal
 
-End-to-end tests that span >= 2 LRD portals (client / admin / team / provider).
+End-to-end tests that span **two or more portals** of a production SaaS — verifying that an action taken in one portal produces the correct state in another (client · admin · team · provider).
 
-## Series
-- **X-series** (`tests/x-series/`) — the customer lifecycle handoffs. Each test simulates one portal taking action and another portal observing the resulting state.
-- **Y-series** (`tests/y-series/`) — cross-cutting concerns (mobile block, CSP, auth boundaries) verified across multiple portals in one spec.
+> Part of a larger private product (Legal Record Desk). This repo is public as a
+> representative sample of how I structure and operate cross-service E2E testing.
+
+## What this demonstrates
+
+- **Cross-portal integration testing** — not single-app happy paths, but real handoffs: one portal acts, another observes the resulting state.
+- **Playwright + TypeScript**, Chromium, serial & deterministic (`workers: 1`, no flaky parallelism) with generous per-test timeouts for real network flows.
+- **Failure-first artifacts** — traces, screenshots, and video are captured automatically on failure for fast diagnosis.
+- **No hardcoded credentials** — test identities are pulled at runtime from a managed secret store, never committed to the repo.
+- **MFA-aware** — flows that require TOTP are handled programmatically, so multi-factor auth doesn't block automation.
+
+## Structure
+
+- **X-series** (`tests/x-series/`) — customer-lifecycle handoffs. Each spec simulates one portal taking an action and another portal observing the resulting state (e.g. a new request created in one portal appearing for staff in another).
+- **Y-series** (`tests/y-series/`) — cross-cutting guarantees verified across multiple portals in a single spec (auth boundaries, mobile-access blocking, security headers).
 
 ## Run
 
 ```bash
-bun install
+npm install
 npx playwright install chromium
-bun run test
+npm test          # full suite
+npm run test:x    # X-series only
+npm run test:y    # Y-series only
 ```
 
-## Required env / secrets
-Tests read AWS Secrets Manager via `lrd-e2e-common.getSecret()`. Required secret IDs:
-- `lrd/e2e/client-real-creds`
-- `lrd/e2e/admin`
-- `lrd/e2e/admin-totp`
-- `lrd/e2e/team`
+Test identities are resolved at runtime from a managed secret store; the suite runs
+against isolated test fixtures only, never real customer data.
 
-## Operating mode
-Pre-launch. All flows touch QC test fixtures only (firm `E2E-TEST-FIRM-001`, request `LRD-2026-E2E001`). Tests that would create new firms or invoke Donna are deliberately marked `.skip` until `is_test_firm_id` is extended to a prefix allowlist (see infrastructure repo's design doc Known limitations section).
+## Notes
+
+Built and maintained solo as part of a production system. Specs that would create
+new tenants or trigger downstream processing are gated behind an explicit test-fixture
+allowlist so the suite can never touch live data.
